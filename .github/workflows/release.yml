@@ -27,7 +27,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     name: Upload to release
-    if: $({ success() && startsWith(github.ref, 'refs/tags') })
+    if: ${{ success() && startsWith(github.ref, 'refs/tags') }}
     needs: out
     steps:
       - name: Download built artifacts
