@@ -1,0 +1,51 @@
+on:
+  push:
+    branches: main
+    tags:
+      - '*'
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: skylyrac/blocksds:slim-v1.6.3
+    name: "Build"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+      - name: Compile and build
+        run: |
+          make
+          mkdir out
+          mv poweroff.nds out
+      - name: Publish
+        uses: actions/upload-artifact@v4
+        with:
+          path: "out/*"
+          name: out
+
+  publish:
+    runs-on: ubuntu-latest
+    name: Upload to release
+    if: $({ success() && startsWith(github.ref, 'refs/tags') })
+    needs: out
+    steps:
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: out
+          path: out
+      - name:
+        if:
+        run: |
+          ID=$(jq --raw-output '.release.id' $GITHUB_EVENT_PATH)
+
+          for file in ${{ github.workspace }}/build/*; do
+            AUTH_HEADER="Authorization: token ${{ secrets.GITHUB_TOKEN }}"
+            CONTENT_LENGTH="Content-Length: $(stat -c%s $file)"
+            CONTENT_TYPE="Content-Type: application/7z-x-compressed"
+            UPLOAD_URL="https://uploads.github.com/repos/${{ github.repository }}/releases/$ID/assets?name=$(basename $file)"
+
+            curl -XPOST -H "$AUTH_HEADER" -H "$CONTENT_LENGTH" -H "$CONTENT_TYPE" --upload-file "$file" "$UPLOAD_URL"
+          done
+
